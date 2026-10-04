@@ -1,0 +1,11 @@
+[project]
+name = "Black Lands 2 Passthrough Probe"
+version = "0.2.0"
+description = "Read-only native game-state bridge probe"
+authors = [{name = "Black Lands 2"}]
+
+[tool.sdkmod]
+name = "Black Lands 2 Passthrough Probe"
+version = "0.2.0"
+supported_games = ["BL2"]
+

@@ -1,0 +1,1062 @@
+BLACK LANDS 2 - MODEL HANDOFF / PROGRESS
+Last updated: 2026-10-04
+Latest change: FIRST LIVE COMBINED PICTURE: BL2 native gun+HUD chroma-keyed over live BO2 Zombies in an external preview (isolation_mode + composite_preview).
+Status: Telemetry, reversible presentation experiments and an external keyed composite preview; NOT a playable combined game.
+
+==========================================================================
+1. READ THIS FIRST
+==========================================================================
+
+Active workspace: C:\Claude Projects\Black Lands 2 Passthrough
+Use this as the explicit working directory for commands.
+The sibling "Black Lands 2" folder is the PRESERVED Rust engine rewrite.
+Do not resume that rewrite or recreate this project in the old Codex scratch
+directory. The user switched to passthrough on 2026-10-03.
+
+Read AGENTS.md, this file, then docs/DESIGN.md and docs/RUNTIME.md as needed.
+docs/STATUS.md contains chronological evidence; earlier milestones describe
+older states. This file is the current consolidated handoff.
+
+Current source is Git-initialized on master but has NO COMMITS; authored files
+are untracked. Do not mistake an empty git diff for a verified clean repository.
+The allowlist .gitignore excludes everything except authored source/docs.
+work/ is ignored: installations, SDK/tool downloads, reference code, evidence,
+deployment backups and build output live there. Do not publish it.
+
+The user resumed live testing with both games open on 2026-10-04. The optional
+native BL2-to-Rust pose stream and returning ACKs worked, including continued
+publication while the user reported BO2 focused. Each capture is finite: recheck
+processes and advancing reports instead of assuming this historical evidence
+describes currently running software. Restart host and SDK publisher for a new run.
+
+For another AI model, a useful starting prompt is:
+  Read AGENTS.md and PROGRESS.txt in the active passthrough workspace. Continue
+  the next appropriate task without restarting completed work. Keep native
+  evidence separate from synthetic tests and update PROGRESS.txt afterward.
+
+==========================================================================
+2. USER'S PRODUCT REQUIREMENTS AND DECISIONS
+==========================================================================
+
+CONFIRMED TARGET:
+- Original BO2 Zombies is the core game, across ALL BO2 Zombies maps.
+  One-map prototyping is a validation stage, not a reduced release scope.
+- BL2 supplies native guns, drops, characters, shields, grenades, class upgrades
+  and its actual inventory screen/HUD. Preserve shield/grenade indicators, ammo,
+  XP/level progress and level-up feedback (explicit user HUD decision).
+  World isolation must retain desired native HUD and gun/hand layers. HUD health
+  must reflect BO2-authoritative match health; donor campaign values are not proof
+  of correct Zombies integration. Do not substitute a lookalike inventory or
+  hand-authored weapon behavior without an explicit direction change.
+- "Class upgrades" includes class-mod equipment as a working interpretation;
+  the complete intended scope has not been specified.
+- PROGRESSION RESETS WITH EVERY NEW ZOMBIES MATCH. XP, level gains and skill
+  progression return to a starting baseline. That baseline is not chosen yet.
+- A new round, revive, adapter refresh or bridge reconnect is NOT a new match.
+  Future match identity must be distinct from transport/session identifiers.
+- Isolate mod progression from normal BL2 campaign saves. Do not reset those saves.
+- The release should ask users for their own BO2 and BL2 installation locations.
+  Ship authored integration code, not source-game assets or saves.
+
+PROPOSED / UNDECIDED:
+- Native skill trees remain a "maybe" feature. If included, leveling should let
+  a player complete a chosen build within one Zombies match. Configurable 10x XP
+  or higher is a tuning candidate, not an implemented multiplier or guarantee.
+- A full chosen build does not automatically mean maximizing every skill tree.
+- Action skills, starting level/skill points, target completion round, XP awards,
+  level cap, starting loadout and item carryover need specification.
+- Mystery Box behavior is explicitly undecided. Do not redesign it by default.
+- Pack-a-Punch mapping, menu pause behavior and placeholder world-drop models
+  have not been selected. Co-op is a later stage, not working functionality.
+- Pre-match lobby character selection is the current recommendation, not a
+  validated implementation. The user requested research; no selector was built.
+- HUD layout/mapping for BO2 rounds/points and donor minimap/quest information is
+  unselected. Keeping level-up UI does not by itself settle skill trees/XP rules.
+
+ARCHITECTURE:
+BO2 owns movement/collision, camera, zombies, rounds, player health/death and map
+events. BL2 should evaluate its own equipment and inventory. Shields need an
+explicit absorption-to-BO2-health pipeline; do not run two health authorities.
+The bridge translates events/state/input and eventually rendering/audio.
+Separate processes and explicit interfaces are the useful parts of MC's supplied
+passthrough document. They do not guarantee compatibility or eliminate crashes.
+Rust is now used for a sidecar, NOT to restart the abandoned engine rewrite.
+
+==========================================================================
+3. WHAT HAS ACTUALLY BEEN PROVEN
+==========================================================================
+
+LIVE GAME EVIDENCE (historical observations, not current online status):
+- Official Willow2 SDK v3.8 and authored BL2 probe installed with manifests.
+  Plutonium T6 revision 5354 observed. Original executables preserved.
+- BO2 GSC loaded in a Zombies map and exported advancing position, camera,
+  health, round, time and equipped-weapon snapshots.
+- BL2 read BO2 snapshots and acknowledged their sequence; BO2 printed new ACKs.
+  Both games were observed advancing simultaneously in the original live test.
+- Native BL2 weapon detection and switching worked: Swift Hail -> Hard Bangstick.
+  Name, part/definition paths and evaluated native fields were read.
+- Firing/reload test: total ammo 111 -> 110 -> 109; loaded count 3 -> 2 -> 1;
+  reload settled at loaded 4 / reserve 105, matching the user's HUD. 168 samples.
+  These were 4 Hz observations, NOT lossless shot events.
+- Native ConsumeAmmo, FiringModeDefinitionFire, ReloadDone, local damage-display
+  and enemy TakeDamage callbacks were observed.
+- TakeDamage named the actual pistol as DamageCauser. Tested hits reported
+  Damage 452.7012939453125. This is a callback value, not proof of a health delta.
+- Optional event capture automatically ended after its 180-second window.
+- Optional Rust IPC received changing native BL2 position/rotation and weapon
+  identity; matching producer ACKs advanced. SDK log confirmed explicit activation.
+  Final receiver: 6,474 accepted, 0 rejected, 15 sequence gaps; about 43.05 accepted
+  updates/sec during observed online time. SDK reported 0 errors and 0 send skips.
+  Sampled ACK RTT median 23.55 ms includes game-tick polling, not game-to-game lag.
+  Receiver exited normally; SDK then stopped with sidecar_unresponsive, offline,
+  inactive and 0 errors. Final ACK count 6,474 matched receiver acceptance count.
+  During a user-reported BO2 focus test, 633 poses arrived over 14.90 seconds and
+  both peers stayed online. Focus was not instrumented in that pose-only test.
+- Subsequent external WGC capture visually confirmed native BL2 world/gun/HUD.
+  A finite 120s CPU preview submitted 1,155 frames (~9.66/sec under a 10 Hz cap),
+  1,150 distinct hashes, at 1282x747 / 1286x749. Foreground-process sampling showed
+  131 changing frames while BO2 held focus, including a continuous 12.19s span.
+  This later rendering test instrumented focus; the earlier pose test did not.
+  No capture error; receiver ended at its deadline. Hidden/minimized untested.
+  Later user-confirmed native inventory switching is recorded below.
+- Read-only rendering reflection found the native viewport world-disable flag,
+  separate HUD movie, arms DepthPriorityGroup=1 and weapon FirstPersonMesh.
+- Explicit 12s world-disable test preserved the HUD but hid BOTH world and gun.
+  Captured frames and user confirmation agree. Original flag false restored after
+  15s including a 3s delay; gun/world returned. Not weapon+HUD isolation, no alpha.
+- Clean client capture now works for both games: BL2 1280x720, BO2 800x600.
+  Measured Win32/DWM geometry removes decorations; BO2 console HWND is excluded.
+  BL2 captured alpha was opaque (255); no weapon coverage mask was obtained.
+- Native Inventory and Badass Rank tabs were captured and visually identified.
+  StatusMenuExGFxMovie open/closed state and CurrentScreen advanced alongside them.
+  A 120s external receiver submitted 1,161 frames with five view entries (initial
+  BO2 and two menu open/close cycles), no errors. User confirmed automatic native
+  inventory display and return to BO2. Controls remain with original game windows.
+- New read-only player observer reads native health/shields, grenade resource,
+  level/XP, backpack count/capacity, equipped weapon and separate HUD caches.
+  These are donor campaign values, not integrated Zombies match state.
+- First player recording failed on a Windows snapshot replacement conflict.
+  After the fix, native capture reached seq711, deadline stop, zero errors and
+  two skipped busy-file writes. The fixed recording has 472 observations; final
+  stopped packet saved separately. No observer/game-thread retry loop was added.
+- Expanded reflection found weapon FirstPersonMesh DepthPriorityGroup=1, but
+  controller HiddenActors/HiddenComponents/HiddenPrimitiveComponents were not
+  exposed. No selective visibility mutation or guessed native offsets added.
+- Native menu-control trial: panel submitted open_inventory, SDK observed native
+  Inventory screen3, and panel verified BL2 foreground. User confirmed it opened
+  and received control. BO2 foreground handoff also logged as successful. First
+  corrected activation handled open plus already_open without toggling it closed;
+  second activation opened it again. Saved PNG shows the actual native Inventory.
+- Initial new activation failed on SDK add_hook returning false after insertion.
+  The installed SDK revision's source confirms that append branch. Player/menu
+  adapters now clear only owned IDs and check has_hook. Corrected native activation
+  advanced with zero errors. Historical failed log and successful reports preserved.
+  Corrected menu session ended normally: seq1665, inactive duration_complete,
+  errors0, write_skips2. Both finite panels and optional SDK modules are stopped;
+  recheck live status rather than treating saved packets as active services.
+- Post-process inspector (LIVE): active PlayerPostProcess chain = AmbientOcclusion
+  (SceneDPG=1 SDPG_World), EdgeDetection (5), FXAA (4), Uber (4, bUseWorldSettings).
+  Enum: World=1, Foreground=2, PostProcess=4, WorldPreAlphaPostProcess=5.
+  Evidence: mailbox blacklands_postprocess_api.json (also note below).
+- Trial 1 postprocess_trial (LIVE, FAILED): InsertPostProcessingChain returned true
+  but stored a RENAMED copy (bInClone=False not honored), with the copy's uber
+  SceneDPG reset 1->4, and the active combined chain did NOT include it. No visual
+  change in 57 captured frames (work/render-20261004-172030-c209e70e). Two copies
+  remained until the fixed recover() removed both (user saw "2"). Detection now
+  also matches owned effect names.
+- Trial 2 ao_key_trial: first run no visible change because BL2 Video > Ambient
+  Occlusion was OFF (user confirmed). With AO ON (LIVE): all four profiles tinted
+  occluded world areas/edges purple, and ALSO the gun (gun-region purple 10.44%);
+  restored=True. Evidence work/render-20261004-172833-ad1f83fb, grid
+  work/ao-profiles-grid.png. Profile 0 (bias +1, min 0) had widest coverage.
+- CORRECTION: arms and weapon FirstPersonMesh DepthPriorityGroup=1 is SDPG_WORLD on
+  this build (Foreground=2). Earlier notes calling group 1 "foreground" were wrong.
+  This explains why bDisableWorldRendering hid the gun too.
+- Trial 3 foreground_trial (LIVE, SUCCESS for separation): native
+  SetDepthPriorityGroup(2) on Pawn.Arms + Weapon.FirstPersonMesh, hold 3s, then AO
+  key profile 0 for 6s, then AO restore and groups back to 1 (restored=True,
+  duration_complete, no error). Keyed frames: world tinted, gun clean (gun-region
+  0.37-1.31% vs 10.44%); user confirmed "gun stayed un-purple". Moving to Foreground
+  showed no obvious visual change otherwise. Evidence work/foreground-trial-
+  validation.json, work/render-20261004-173159-1d01e8ec, work/foreground-trial-grid.png.
+  LIMITS: AO key covers only occluded areas, not a flat full-world mask; tint, not
+  alpha; requires AO enabled; HUD not separately measured; weapon switch during the
+  trial leaves the new weapon at its normal group.
+- Trial 4 blackout_trial (LIVE, NEGATIVE): arms/gun in SDPG_Foreground plus
+  bDisableWorldRendering=true. User saw HUD over black; world AND gun disappeared.
+  So the world-disable flag skips the foreground group too. Restored cleanly
+  (duration_complete, restored=True, groups back to 1). Times 15:37:43-15:37:54 UTC;
+  capture under the newest work/render-20261004-1736* folder.
+- EdgeDetection effect (SDPG 5) has only filter/distance fields, no colour field.
+- Trial 5 coverage_trial (LIVE, NEGATIVE for full mask): gun/arms in Foreground,
+  AO profiles baseline / +TouchPlayerPostProcessChain / power 0.01 / radius 5000
+  scale 100. All looked the same to the user; measured world purple 0.2-0.3% in
+  every profile (work/render-20261004-174623-59b7ccdc). restored=True, 4 chain
+  refreshes plus one after restore. Conclusion: the AO key cannot become a full
+  world mask through SDK-exposed AO fields.
+- diagnose_fog (LIVE, read-only): Ice_Light has one enabled HeightFogComponent
+  (ForceUpdate/SetEnabled available) and one disabled ExponentialHeightFogComponent.
+- Trial 6 fog_trial (LIVE, SUCCESS): first run aborted safely (fog_changed_before_
+  test; BL2 rewrites this fog every frame). Revised trial captures originals at
+  first write and reasserts values + ForceUpdate(False) whenever the game overwrote
+  them (1043 of 1046 updates). With gun/arms in Foreground and Height/Extinction 1e9,
+  StartDistance 0, Density 0.01 then 1.0, LightColor magenta: upper world region
+  99.7% key, whole frame ~84%, gun and HUD clean; user confirmed "everything went
+  purple besides the Gun and HUD". restored=True. Evidence work/fog-trial-
+  validation.json, work/render-20261004-175532-952120fc, work/fog-trial-grid.png,
+  work/fog-isolated-full.png (naive key removal shows gun+HUD on black).
+  LIMITS: chroma key not alpha; translucent HUD (minimap, crosshair) picks up the
+  key; per-frame reassert cost unmeasured; one map; key-coloured art would be cut.
+- isolation_mode + composite_preview (LIVE, user confirmed "that worked"): BL2 native
+  gun and HUD keyed over the live BO2 Zombies capture for 26s (219 composited
+  frames); a weapon switch followed into Foreground and the native item card
+  showed over BO2. Isolation stopped manually with restored=True, error None,
+  4453 fog reasserts, 0 write skips; receiver then fell back to BO2 only.
+  Evidence work/composite-validation.json, work/composite-20261004-180145-82064a18,
+  work/composite-grid.png. LIMITS: external CPU window, not in-BO2; BO2's own
+  viewmodel/crosshair still visible underneath; BL2 stretched 1280x720->800x600;
+  chroma key; one BL2 map; no input forwarding.
+- Preview recovery changes passed a3s two-game native capture (no error/crop skip).
+  Actual capture-loss fallback was tested with synthetic states, not by closing a game.
+
+OFFLINE VERIFICATION:
+- Latest Python run: 128 tests passed with base Python (6 numpy composite tests
+  skipped there; they pass under work/render-venv). Includes 10 post-process, 1
+  inspector, 6 AO, 5 foreground, 4 blackout, 3 coverage, 5 fog, 3 isolation tests.
+  RenderOnly preflight and isolated deployment of the 3 new modules succeeded.
+- Previous Python run: 85 tests passed. Latest 25 added tests cover request expiry,
+  replay protection, native-call failures, menu confirmation, real temporary-file
+  exchange with a synthetic peer, foreground guards and capture fallback. Includes
+  two SDK false-return hook-registration/recovery regressions.
+  Historical unchanged Rust checks: 4 tests, clippy with warnings denied and fmt.
+  Python compilation and changed PowerShell syntax checks also passed.
+- BO2 GSC compiled using xensik gsc-tool 1.5.1.359 for T6 PC (historical syntax check).
+- Separate Python and Rust processes exchanged 95 SYNTHETIC pose snapshots;
+  rejected 3 invalid/replayed messages; stale detection, producer restart,
+  duplicate-launcher rejection and finite shutdown passed.
+- Measured synthetic RTT included the Python polling schedule. It is not proof
+  of game-to-game input latency, frame latency or GPU performance.
+- All 87 deployed SDK/probe files matched the latest manifest, and the original
+  BL2 executable hash matched. Historical smaller file counts in STATUS are old.
+
+NOT PROVEN / NOT IMPLEMENTED:
+- Exact firing-call -> delayed hit attribution; native projectile association.
+- Rendering while minimized/hidden, active D3D9Ex compatibility and shared textures.
+- Fast BO2 IPC, gameplay commands, reliable combat transactions or match IDs.
+- Cross-game damage, collision proxies, input forwarding or native loot transfer.
+- Native shields/grenades/classes/characters/skills across the two engines.
+- Gun/hand isolation, shared GPU textures, inventory embedded in BO2, audio routing.
+  Native menu selection in a separate external preview IS verified.
+- Lobby character selector, all-map compatibility, co-op or finished launcher.
+- Live disconnect/reconnect tests for the original two-game loop.
+
+==========================================================================
+4. TWO TRANSPORTS EXIST - DO NOT CONFUSE THEM
+==========================================================================
+
+A. EXISTING FILE BOOTSTRAP (live verified)
+BO2 GSC -> blacklands_host.txt -> BL2 SDK -> blacklands_reply.txt -> BO2 console.
+BL2 also writes blacklands_bl2.json and blacklands_weapon.json.
+Both adapters sample approximately every 0.25 seconds (4 Hz).
+Plutonium's observed mailbox is:
+  %LOCALAPPDATA%\Plutonium\storage\t6\raw\scriptdata
+The "raw" component is essential. Do not revert to storage/t6/scriptdata.
+
+BO2 frame:
+  BLPT1|seq|game_ms|x|y|z|pitch|yaw|roll|health|round|weapon|END
+Reply:
+  BLPT1|host_seq|donor_seq|ACK
+ACK is diagnostic only; BO2 does not evaluate incoming text or apply commands.
+The current BO2 probe samples only when exactly ONE player exists.
+
+B. OPTIONAL RUST IPC (synthetic and native pose/ACKs verified)
+BL2 runtime.py -> nonblocking UDP on 127.0.0.1 -> Rust sidecar -> ACK.
+It sends primitive pose/weapon identity, capped at 60 Hz, not guaranteed 60 Hz.
+BO2 is NOT connected to this fast channel. No rendering data is transported.
+One datagram = bounded JSON pose. Lossy latest-state observations only.
+Do not use this channel unchanged for damage, XP, pickups, saves or other actions
+that need reliable delivery, deduplication and durable effects.
+See docs/RUNTIME.md for the full schema and lifecycle contract.
+
+C. SEPARATE FINITE MENU CONTROL (new UI operation, not gameplay transport)
+Panel -> blacklands_menu_request.json -> SDK menu_control -> native Inventory.
+blacklands_menu_status.json reports heartbeat and observed request outcome.
+Read docs/MENU_CONTROL.md. Explicit start_menu_control.py activation;180s max,
+random activation tied to donor session, exact open_inventory action only,
+contiguous request seq1..128, expiry<=2s, at-most-once native invocation. Successful
+function return is not success: require native Inventory screen3 to appear.
+Never add arbitrary commands or reuse this UI experiment as combat/persistence.
+
+==========================================================================
+5. IMPORTANT SOURCE FILES, FUNCTIONS AND VARIABLES
+==========================================================================
+
+FILE: adapters/bo2/blacklands_probe.gsc
+  init() starts blacklands_probe(); exits on level "game_ended".
+  sequence: per-map diagnostic counter, wraps after 2,000,000,000.
+  last_reply: suppresses duplicate console ACK messages.
+  players/player: sampled local actor; requires players.size == 1.
+  p/a: native origin and getplayerangles(); round: level.round_number or 0.
+  frame: BLPT1 wire text; wait 0.25 controls the bootstrap sample rate.
+
+FILE: adapters/bl2/blacklands_passthrough/__init__.py
+  Main Mods menu probe v0.2.0. enable(), disable(), sample().
+  sample is hooked to Engine.PlayerController:PlayerTick; UObject reads occur
+  on that game thread. Main probe and optional modules have distinct hooks.
+  _mailbox: Path or None; None disables sampling.
+  _session: new UUID on enable; _seq: diagnostic sample counter.
+  _next_sample: 4 Hz limiter; _last_error: repeated-warning suppression.
+  BLACKLANDS_MAILBOX: optional explicit environment override; otherwise use the
+  observed LOCALAPPDATA mailbox. An invalid explicit path does not fall back.
+  host_seq: validated BO2 sequence being acknowledged, not a gameplay command.
+
+FILE: adapters/bl2/blacklands_passthrough/weapon.py
+  inspect_weapon(): primitive, bounded native weapon report; returns None if empty.
+  DEFINITION_PATHS: 14 type/balance/manufacturer/part/prefix/title object paths.
+  DEFINITION_NUMBERS: ManufacturerGradeIndex, GameStage, UniqueId.
+  STAT_FIELDS: InstantHitDamage, InstantHitDamageBaseValue, FireInterval,
+  ReloadTime, ClipSize, ShotCost, Spread, AmmoNotInClip, LastReloadCnt, ReloadCnt,
+  AmmoLeftInClipDuringReload, ReplicatedReloadState.
+  GETTERS: GetAmmoCount, GetMaxAmmo, GetMultiProjectileDamage only.
+  STATE_FIELDS: bIsFiringWeapon, bAmmoRefilledDuringReload, bManualReload.
+  unavailable: explicit missing/failed field report; never invent replacements.
+  inspection_revision = 2. Native stats are not a complete weapon card or final
+  damage formula. GetAmmoCount behaved as TOTAL ammo in the tested shotgun.
+
+FILE: adapters/bl2/blacklands_passthrough/diagnose_weapon.py
+  run(): one-shot native property/function signature inspection. Does not invoke
+  arbitrary discovered functions. Output: blacklands_weapon_api.json.
+FILE: adapters/bl2/blacklands_passthrough/refresh_weapon.py
+  Reloads only weapon inspection and reconnects adapter.inspect_weapon, preserving
+  the main session/tick hook. Use after a WeaponOnly update.
+FILE: adapters/bl2/blacklands_passthrough/pyproject.toml
+  SDK mod metadata; main probe version 0.2.0.
+
+FILE: bridge/wire.py
+  MAX_BYTES = 8192. HOST_FILE, DONOR_FILE, REPLY_FILE, WEAPON_FILE name snapshots.
+  parse_host(), parse_donor(), parse_weapon(): schema/value/bound checks.
+  read_bounded(), write_atomic(): limited input and atomic donor replacement.
+  Freshness: key, last_progress, timeout (2 seconds). Requires changing samples;
+  simply finding an old file is not evidence that a game is online.
+FILE: bridge/monitor.py
+  peers: separate Freshness per engine. Checks both advance and BL2 host_seq is
+  within 8 sequences of BO2. --seconds 0 runs until interrupted.
+FILE: bridge/inspect_weapon.py
+  matches_donor(): matching session, weapon path and sequence tolerance (0..8).
+  A stale or mismatched report is not presented as live weapon data.
+FILE: bridge/record_weapon.py
+  transition(previous,current): ammo observation only. Breaks comparison across
+  session/weapon switches, >8 sequence gaps or >2-second sample gaps.
+  --seconds defaults 45, maximum 180. samples/transitions are not exact shots.
+
+FILE: bridge/event_wire.py
+  EVENT_FILE = blacklands_events.json; MAX_EVENT_BYTES = 262144; CAPACITY = 128.
+  KINDS: consume_ammo, fire_mode, projectile, reload_begin, reload_done,
+  display_damage, fire_begin, projectile_spawn, take_damage, impact_begin/end.
+  EventBuffer: bounded deque, last_id monotonic, evicted counts overwritten entries.
+  parse_events(): contiguous retained event IDs, UUID/counter/bound checks.
+  Event data is at most 12 scalar fields, not nested native object structures.
+FILE: bridge/inspect_events.py
+  Reports retained counts, callback errors, evictions and live/stopped status.
+  --seconds defaults 2 (max 60); --output saves summary plus packet.
+  Exit success means valid data was read; check live separately.
+
+FILE: adapters/bl2/blacklands_passthrough/events.py
+  Optional finite read-only diagnostic; start(seconds=180), stop(), flush().
+  _specs: 8 POST callbacks (ammo, fire, projectile, reload, damage display,
+  projectile construction and WillowAIPawn.TakeDamage).
+  _tick: PlayerTick; _impact: ProcessInstantHitBullet.
+  _prefix = blacklands.readonly.events. Own identifiers permit cleanup/reload.
+  Total currently 12 hooks, including firing PRE and impact PRE/POST.
+  _capture is the state dictionary:
+    id/session: event capture UUID and main donor session.
+    seq/buffer/errors: packet sequence, EventBuffer, callback error count.
+    active/reason/started/deadline/next_flush: finite lifecycle/publication.
+    shot_id/stack: capture-local firing-call IDs and synchronous contexts.
+    projectiles: at most 256 weak-reference associations to original weapons.
+    hit_diagnostics: first four primitive argument descriptions.
+    impact_id/impacts: separate bullet-impact call contexts, not firing IDs.
+  on_fire_begin() assigns a firing-call ID, NOT a universal trigger/shot ID.
+  on_event('take_damage') filters InstigatedBy to the local player; uses native
+  DamageCauser, never simply the currently equipped gun. Missing causal links
+  remain null. impact_id requires matching scoped native weapon AND target.
+  on_tick clears leftover contexts, stops stale sessions/deadlines and publishes.
+  Hooks return None; never block or re-invoke original game functions.
+  SDK WeakPointer is emulated and is not an absolute object-reuse guarantee.
+
+FILE: adapters/bl2/blacklands_passthrough/hit_trace.py
+  describe(): bounded primitive reference inspection (default budget 160).
+  function_schema(): candidate hit/trace/bullet/impact/shot/fire signatures,
+  at most 128 functions and 32 params; no discovered methods executed.
+  bullet_schemas(): at most 24 loaded bullet-related classes, 96 properties each.
+FILE: adapters/bl2/blacklands_passthrough/start_events.py
+  Stops OLD module's hooks BEFORE reloading event_wire, hit_trace and events,
+  then starts a fresh capture. Avoids duplicate hooks after isolated updates.
+
+FILE: runtime/Cargo.toml
+  blacklands-runtime 0.1.0, Rust edition 2024, serde + serde_json dependencies.
+FILE: runtime/Cargo.lock
+  Locked dependency versions. Keep builds under work/runtime-target.
+FILE: runtime/src/lib.rs
+  MAX_BYTES = 8192; STALE_MS = 2000.
+  Pose: schema=1, kind=pose, source=bl2, origin=native_bl2 or synthetic_test,
+  epoch, token, session, seq, sent_us, position[3], angles[3], weapon/null.
+  Pose::parse rejects unknown fields, wrong credentials/schema and invalid data.
+  Stream: latest, endpoint, retired, received, rejected, sequence_gaps,
+  session_samples, last_ms. accept() rejects duplicates/reordering/address or
+  origin changes inside a session. New session requires old peer to be stale.
+  retired stores at most 64 past sessions. online() requires >=2 fresh samples.
+FILE: runtime/src/main.rs
+  Bootstrap {epoch,token} arrives via bounded stdin, not printed to logs.
+  Binds localhost UDP on a dynamic port; rejects oversized Windows datagrams.
+  Publishes endpoint and redacted status JSON; finite duration 1..180 seconds.
+  Report native_bl2_online depends on progressing native-labeled samples.
+  No gameplay command handler exists. Producer labels are not attestation.
+
+FILE: bridge/runtime_ipc.py
+  MAX_BYTES = 8192; ENDPOINT_FILE = blacklands_runtime_endpoint.json.
+  read_endpoint(): checks localhost, sole bl2_pose_readonly capability, schema.
+  Publisher: endpoint, origin, session, seq, started, last_ack, ack_seq,
+  ack_count, last_rtt_ms, skipped, closed, pending, socket.
+  send()/poll(): nonblocking; max 128 pending, max 8 replies drained per sample.
+  Replies must match an outstanding seq/sent_us and current epoch/session.
+  status(): >=2 ACKs and last ACK within 2 seconds required for online.
+  Local credentials prevent accidental mixups, not hostile same-user access.
+FILE: bridge/runtime_host.py
+  Launches Rust with fresh UUID epoch/token; msvcrt launcher lock prevents two
+  cooperating launchers owning one mailbox. --seconds defaults/max 180.
+  Default report work/runtime-status.json; default binary under runtime-target.
+
+FILE: bridge/render_probe.py
+  Finite external Windows.Graphics.Capture proof; no injection or game input.
+  SOURCES/find_game_window/owner select exact BL2 or Plutonium Zombies HWND;
+  BO2 title-prefix check excludes its separate console. No desktop fallback.
+  worker/on_frame_arrived copy callback-owned BGRA pixels into state.latest under
+  a lock at <=10 Hz. state also holds next_sample/callbacks/closed/error.
+  report.samples holds timespan, dimensions, foreground classification, hashes,
+  pixel variation/difference, captured_size, crop and captured_alpha_range.
+  displayed counts preview submissions, not user proof. BGR preview follows copy.
+  --source bl2|bo2, --client-only use measured physical Win32/DWM client bounds;
+  mismatched resize frames are skipped. This does not isolate a weapon layer.
+  draw_border=None required here; explicit true failed on this Windows build.
+  Bounds: 4096x2160, 1..180 seconds, parent watchdog adds 20s then terminates worker.
+  New per-run work/ directory contains first.png, last.png, report.json.
+  --save-every 1..60 adds interval PNGs (0=off), names recorded in samples.
+FILE: bridge/render-requirements.txt
+  Pinned windows-capture 2.0.1, numpy 2.5.3, opencv-python 5.0.0.93.
+FILE: scripts/Setup-RenderProbe.ps1
+  Isolated binary-wheel environment under work/render-venv; no game deployment.
+FILE: scripts/Start-RenderProbe.ps1
+  -Seconds (1..180), -Preview, -SaveEverySeconds (0..60), -Source bl2|bo2,
+  -ClientOnly; unique work/ output folder.
+FILE: docs/RENDERING.md
+  Capture protocol, runbook, local evidence, limitations and next renderer gates.
+FILE: adapters/bl2/blacklands_passthrough/diagnose_render.py
+  One-shot read-only reflection. PATHS selects objects; WORDS filters fields.
+  Revision2: max320 fields/object, 24 function parameters, 1 MiB output bound.
+  Adds FirstPersonMesh, HUDMovie, PRI, resource/XP pools and inventory manager.
+  WrappedStruct inspection is bounded and excludes pointer-named fields.
+  Writes mailbox blacklands_render_api.json; no native game-function invocation.
+FILE: adapters/bl2/blacklands_passthrough/render_trial.py
+  Explicit presentation-only trial. Changes viewport.bDisableWorldRendering only.
+  HOOKS: PlayerTick POST and WillowGameViewportClient.PostRender POST; identifier
+  blacklands.render.world_trial. Both run restoration on the game thread.
+  _state: WeakPointer ref, original, restore_needed/restored, phase, apply_at,
+  restore_at, duration, donor_session, history, registered hooks, error/reason.
+  start: requires enabled probe/loaded pawn/world flag false; register before change.
+  on_frame: after3s set true; after12s restore. Configurable duration1..15s.
+  stop: restore before removing owned hooks; keep hooks to retry a failed restore.
+  Session change/missing player stops. Suspended callbacks delay cleanup.
+  Writes blacklands_render_trial.json. Has no remote command endpoint.
+FILE: adapters/bl2/blacklands_passthrough/start_render_trial.py
+  Restores any old trial before reload/start; explicit SDK activation only.
+FILE: adapters/bl2/blacklands_passthrough/diagnose_postprocess.py
+  One-shot read-only reflection of LocalPlayer PlayerPostProcess/PostProcessChains
+  effects (<=32, <=96 property values each), class defaults for PostProcessChain,
+  PostProcessEffect, UberPostProcessEffect, MaterialEffect, DOFAndBloomEffect and
+  the SDPG enum. Never invokes reflected functions. Writes mailbox
+  blacklands_postprocess_api.json (<=1 MiB).
+FILE: adapters/bl2/blacklands_passthrough/postprocess_trial.py
+  UNTESTED LIVE. Explicit finite presentation trial for gun+HUD isolation.
+  Hypothesis: a post-process effect with SceneDPG=SDPG_World runs after donor
+  world pixels and BEFORE the foreground group (arms/weapon) and Scaleform HUD.
+  apply() constructs owned PostProcessChain "BlackLandsWorldKeyChain" holding one
+  UberPostProcessEffect (shadows -1, highlights 1, midtones 1, desaturation 0,
+  colorize = key, default magenta 1,0,1, bUseWorldSettings false), then
+  LocalPlayer.InsertPostProcessingChain(chain,-1,False). Uber shader semantics in
+  BL2 are a hypothesis; effect_readback records what was actually set.
+  _state: scene_dpg (looked up from enum, never guessed), key, chain_count_original/
+  applied/restored, removed, restored, restore_needed, player_ref/path, history.
+  Lifecycle mirrors render_trial: 3s delay, 1..15s (default 12), chain removal
+  BEFORE unhooking, failed removal keeps hooks and retries. Refuses to apply if the
+  chain count changed during the delay. remove_owned() removes only chains with
+  the fixed owned name; recover() also works after lost module state. Hooks use
+  remove+add+has_hook (SDK b1852aa4). Writes blacklands_postprocess_trial.json.
+  Changes no viewport/HUD flags, saves, items or game files.
+FILE: adapters/bl2/blacklands_passthrough/foreground_trial.py
+  LIVE-VERIFIED separation. Imports ao_key_trial helpers. parts=[arms, weapon]
+  with original group/path/WeakPointer/changed; refuses if either is not in
+  SDPG_World. Phases armed(3s) -> foreground(hold 1..5, default 3) ->
+  foreground_keyed(keyed 1..8, default 6, AO KEY_PROFILE 0) -> restore AO first,
+  then every changed component (all attempted, errors re-raised so hooks retry).
+  Writes blacklands_foreground_trial.json with wall-clock history.
+  start_foreground_trial.py reloads ao_key_trial then foreground_trial.
+FILE: adapters/bl2/blacklands_passthrough/blackout_trial.py
+  LIVE, negative result. Reuses foreground_trial helpers: armed 3s -> foreground
+  (hold 1..5, default 2) -> foreground_world_disabled (1..10, default 6) -> restore
+  viewport flag first, then groups. Refuses if the flag is already true or changes
+  during the delay. Writes blacklands_blackout_trial.json. start_blackout_trial.py.
+FILE: adapters/bl2/blacklands_passthrough/isolation_mode.py
+  LIVE-VERIFIED. Explicit finite (1..180s, default 120) held version of fog_trial:
+  engage() moves arms/gun to Foreground and sets fog VALUES (Density 1, key colour)
+  on the first frame; reasserts fog + ForceUpdate when BL2 overwrites it;
+  follow_weapon() moves newly equipped FirstPersonMesh to Foreground and tracks it
+  (MAX_PARTS 16) for restore. Publishes blacklands_isolation.json heartbeat every
+  0.25s with advancing seq; busy-file writes are skipped (write_skips), never slept.
+  Restore: fog originals + ForceUpdate, then all tracked groups. start_isolation_mode.py.
+  Manual stop: py from blacklands_passthrough import isolation_mode; isolation_mode.stop()
+FILE: bridge/composite.py
+  numpy helpers. alpha(): soft matte from min(R,B)-G (KEY_LOW 60..KEY_HIGH 140; live
+  key ~BGR 244,9,181). coverage(): keyed fraction of the top 40%. despill() for
+  edges. composite(host,donor) resizes donor to host and blends. read_status()
+  bounded (64 KiB), schema/seq/session checks. IsolationTracker requires active,
+  phase isolated, >=1 seq advance and <=2s heartbeat age.
+FILE: bridge/composite_preview.py + scripts/Start-CompositePreview.ps1
+  LIVE-VERIFIED finite (<=180s) dual WGC capture. Composites only if tracker ready
+  AND BL2 frame coverage >= 0.5; otherwise shows BO2 with a reason. Saves frames
+  every --save-every s (<=120), report.json with mode_changes/samples. Watchdog +20s.
+  Output work/composite-*. No input forwarding, no BO2 injection, no GPU sharing.
+FILE: tests/test_isolation_mode.py, tests/test_composite.py (numpy; skip without it)
+FILE: adapters/bl2/blacklands_passthrough/fog_trial.py
+  LIVE-VERIFIED gun+HUD isolation over a key colour. find_fog(): exactly one enabled,
+  attached Engine.HeightFogComponent. Phases armed 3s -> foreground (step) ->
+  PROFILES dense (Density 0.01) / very_dense (1.0) with COMMON Height/Extinction 1e9,
+  StartDistance 0, LightBrightness 1, LightColor key (default 255,0,255). Originals
+  captured at first write; while a profile is active, values are reasserted with
+  ForceUpdate(False) if the game overwrote them (counted in overwrites/updates).
+  Restore: fog originals + ForceUpdate, then depth groups (failures keep hooks).
+  Writes blacklands_fog_trial.json. start_fog_trial.py. diagnose_fog.py is the
+  read-only inspector (blacklands_fog_api.json).
+FILE: adapters/bl2/blacklands_passthrough/coverage_trial.py
+  LIVE, negative. Gun/arms Foreground + 4 AO PROFILES (step 1..3s); profiles 2-4
+  call native LocalPlayer.TouchPlayerPostProcessChain; restore AO, refresh once
+  more, then groups. Writes blacklands_coverage_trial.json. start_coverage_trial.py.
+FILE: adapters/bl2/blacklands_passthrough/ao_key_trial.py
+  LIVE: works only with BL2 Video > Ambient Occlusion ON; tints the gun too unless
+  the gun is in Foreground. Edits only the existing active-chain
+  AmbientOcclusionEffect at SDPG_World: OcclusionColor=key, bAffectsLightingOnly
+  false, power 1, scale 0, fadeout 1e9, PROFILES bias +-1 x MinOcclusion 0/1, step
+  1..3s each. Captures originals, readback-verifies each write, restores before
+  unhooking; refuses if fields changed during the 3s delay. History has wall times
+  for frame alignment. Writes blacklands_ao_key_trial.json. start_ao_key_trial.py.
+FILE: adapters/bl2/blacklands_passthrough/start_postprocess_trial.py
+  Stops old trial, reloads module, starts it. Explicit SDK activation only.
+FILE: tests/test_postprocess_trial.py, tests/test_diagnose_postprocess.py
+  Synthetic: world-group effect, owned-only removal, registration/insert failure,
+  removal retry, external chain change, adapter restart, orphan recovery, bounds.
+FILE: tests/test_render_trial.py
+  Six synthetic tests for restoration, retry, registration failure, existing flag,
+  external flag change during delay and adapter restart. Not visual proof.
+FILE: bridge/capture_geometry.py
+  client_crop(frame_size, outer_bounds, client_bounds): exact dimension/bounds
+  validation, physical coordinates including negative monitors; no guessed border.
+FILE: adapters/bl2/blacklands_passthrough/player_state.py
+  inspect_player(): bounded native/HUD/grenade/backpack/weapon fields. number/path
+  helpers reject nonfinite values and bound strings; unavailable remains explicit.
+  xp_pool_max is NOT xp_next_level_at; do not confuse resource cap with XP target.
+FILE: adapters/bl2/blacklands_passthrough/player_probe.py
+  HOOKS: PlayerTick and viewport PostRender POST, IDENTIFIER owned by this observer.
+  _state: capture_id/donor_session/seq/active/reason/errors/error/write_skips,
+  started/elapsed/deadline/next_sample/mailbox/registered/player/menus/menu_error.
+  start(seconds=180), on_frame(), stop(): finite4Hz game-thread reads; donor change
+  stops hooks. menus(): <=32 StatusMenuExGFxMovie objects, open and CurrentScreen.
+  publish(): <=32KiB atomic JSON. WinError5/32/33 skips one write, next tick retries;
+  no sleeps. A busy final write can leave stale active state; require advancing seq.
+FILE: adapters/bl2/blacklands_passthrough/start_player_probe.py
+  Stop old hooks before reloading player_state/player_probe. Also writes read-only
+  blacklands_visibility_capabilities.json. Main adapter/session remain unchanged.
+FILE: bridge/record_player.py
+  read_player(): bounded short-lived file read, schema/UUID/counter/finite checks.
+  main verifies donor session, tracks advancing captures, records <=720 rows.
+FILE: bridge/menu_router.py
+  MenuRouter: capture_id/seq/samples/last_advance/menu_open/reason. Require active
+  matching donor, two advancing samples, <=2s age. Stale/missing state selects BO2.
+FILE: bridge/presentation_preview.py
+  Two exact WGC client captures, bounded latest frames and <=10Hz CPU receiver.
+  MenuRouter selects BL2 native status menu or BO2 gameplay. No input forwarding.
+  Finite<=180s, parent watchdog+20s, selected frame freshness<=2s; records up to32
+  transition PNGs. Initial frame timeout12s. No GPU sharing or BO2 injection.
+FILE: scripts/Start-PresentationPreview.ps1
+  -Seconds1..180 default90; render venv and unique ignored work/presentation output.
+FILE: scripts/Record-PlayerState.ps1
+  -Python, -Seconds1..180 default90; unique ignored work/player recording.
+FILE: docs/PLAYER_STATE.md
+  Observer and presentation runbook, packet lifecycle, native evidence/limitations.
+FILE: tests/test_capture_geometry.py
+  Four geometry tests, including negative monitors and resize mismatch.
+FILE: tests/test_player_state.py
+  Five native-field/unsupported-field tests with SDK fixtures.
+FILE: tests/test_menu_router.py
+  Four native-menu selection/freshness/session tests with synthetic packets.
+FILE: tests/test_player_probe.py
+  Seven observer lifecycle, Windows file-lock, reader-release and SDK hook tests.
+FILE: bridge/menu_wire.py
+  MAX_BYTES8192; STATUS_FILE/REQUEST_FILE are separate menu mailboxes.
+  validate_request(): exact schema/keys/action, activation/session, seq1..128,
+  created/expires wall-clock ms, TTL<=2000ms. MenuGate reserves last_request before
+  native call; pending_until uses monotonic2s. result states awaiting_menu/opened/
+  already_open/other_menu_open/expired/unconfirmed/native_error/cancelled.
+  No native call is retried after uncertain completion. Busy status writes retry
+  only the snapshot. Activation IDs are accidental-replay protection, not security.
+FILE: adapters/bl2/blacklands_passthrough/menu_control.py
+  IDENTIFIER=blacklands.ui.inventory_control, two owned POST HOOKS,10Hz/180s max.
+  _state: gate/mailbox/active/seq/reason/errors/write_skips/menu_screens/deadline/
+  next_sample/registered. Native ShowStatusMenu_Inventory() is the only operation.
+  Stops on missing player/donor change/deadline/error. Does not close native menus.
+  stop clears fixed owned identifiers even if module state was lost; start verifies
+  has_hook after add_hook (installed SDK can return false after insertion).
+FILE: adapters/bl2/blacklands_passthrough/start_menu_control.py
+  Stops old menu/player observers, reloads protocol/player/control modules in order,
+  starts finite player observation and menu control. No change to main bootstrap.
+FILE: bridge/menu_client.py
+  StatusTracker: activation/seq/advances/last_advance; two advancing active packets,
+  <=1s age. open_inventory waits<=3s readiness, sends once, waits<=4.5s result.
+  Rejects changed activation and never resubmits an uncertain request automatically.
+FILE: bridge/window_focus.py
+  focus_game(): verifies exact game HWND and current foreground owner; hands focus
+  only from panel/game processes. Single SetForegroundWindow then actual HWND check.
+  Another foreground application prevents handoff; Windows refusal shown explicitly.
+  No SendInput, key/mouse synthesis, input-queue attachment or focus-lock bypass.
+FILE: bridge/control_panel.py
+  Finite Tk panel, per-mailbox OS singleton lock, background request worker and UI
+  queue, explicit Open Inventory/Switch control to BO2 buttons, local event report.
+  Does not pause BO2, close BL2 menus or forward input through the external preview.
+FILE: scripts/Start-ControlPanel.ps1
+  -Python, -Seconds1..180; unique ignored control report directory.
+FILE: bridge/presentation_health.py
+  choose_capture(): only fresh<=2s capture frames; missing BL2 falls back to BO2;
+  never substitute donor gameplay when host is unavailable. Tests are synthetic.
+FILE: tests/test_menu_control.py
+  Protocol/gate/status/SDK lifecycle, replay, expiry, partial registration, busy ACK,
+  false-return SDK insertion and orphaned-owned-hook cleanup regressions.
+FILE: tests/test_menu_client.py
+  Actual temporary-mailbox request/confirmation with a synthetic peer; focus guards.
+FILE: tests/test_presentation_health.py
+  Capture fallback and malformed nested menu-state rejection.
+FILE: docs/MENU_CONTROL.md
+  Activation/runbook, request/result contract, focus limits, SDK compatibility.
+FILE: bridge/check_runtime.py
+  Actual subprocess/socket test with SYNTHETIC poses in a temporary mailbox.
+  Verifies rejection, acknowledgements, stale/restart/shutdown and launcher lock.
+  Output work/runtime-ipc-validation.json; never calls either game.
+
+FILE: adapters/bl2/blacklands_passthrough/runtime.py
+  Optional publisher. _function = Engine.PlayerController:PlayerTick.
+  _identifier = blacklands.readonly.runtime.tick. _state holds publisher, active,
+  reason, started, deadline, next_send, next_status, errors, mailbox, donor_session.
+  on_tick samples only the local controller; next_send caps rate at 60 Hz.
+  Position and rotation are RAW BL2 units; no BO2 transform is calibrated.
+  Stops on next native tick after 180s, adapter restart, read error or 5s without
+  ACKs. A paused game may delay cleanup; the sidecar still marks data stale.
+FILE: adapters/bl2/blacklands_passthrough/start_runtime.py
+  Stops its old module, reloads runtime_ipc/runtime, then explicitly starts it.
+  Main probe and event capture hooks are not restarted by this helper.
+
+==========================================================================
+6. SCRIPTS / DEPLOYMENT - EDIT SOURCE, NOT STAGED OR INSTALLED COPIES
+==========================================================================
+
+FILE: scripts/Stage-Probes.ps1
+  Copies authored files to work/staging. Does not modify game installations.
+  Canonical wire.py/event_wire.py/runtime_ipc.py are in bridge/, then staged into
+  the SDK package. Do not create competing canonical copies in adapters/bl2.
+FILE: scripts/Update-BL2-Probe.ps1
+  -CheckOnly: validates planned update without deployment.
+  -WeaponOnly: weapon.py + refresh_weapon.py.
+  -EventsOnly: events.py + event_wire.py + hit_trace.py + start_events.py.
+  -RuntimeOnly: runtime.py + runtime_ipc.py + start_runtime.py.
+  -RenderOnly: diagnose_render.py + render_trial.py + start_render_trial.py +
+     diagnose_postprocess.py + postprocess_trial.py + start_postprocess_trial.py +
+     ao_key_trial.py + start_ao_key_trial.py + foreground_trial.py +
+     start_foreground_trial.py + blackout_trial.py + start_blackout_trial.py +
+     coverage_trial.py + start_coverage_trial.py + diagnose_fog.py +
+     fog_trial.py + start_fog_trial.py + isolation_mode.py + start_isolation_mode.py.
+  -PlayerOnly: player_state.py + player_probe.py + start_player_probe.py.
+  -MenuOnly: player trio + menu_wire.py/menu_control.py/start_menu_control.py.
+  These isolated updates allow BL2 to stay open, but explicit SDK refresh is needed.
+  No isolated switch: full update requires BL2 closed.
+  $manifestPath/$manifest: installed destination hashes and original EXE hash.
+  $plan/$names: fixed update allowlist; $backup/$written: backups and rollback.
+  Refuses untracked/modified destinations, wrong install or changed EXE. Never
+  bypass a failed preflight just to get an update installed.
+FILE: scripts/Install-BL2-Probe.ps1
+  Initial additive installation only. Refuses an existing manifest/destination.
+  SDK archive SHA256 checked. Do not rerun as a routine update.
+FILE: scripts/Install-BO2-Probe.ps1
+  Initial additive Zombies GSC install; records work/bo2-deployment.json.
+FILE: scripts/Check-Environment.ps1
+  -BO2/-BL2 configure installations; otherwise read work/installations.json.
+  Writes presence/hash report work/environment.json; presence is not live proof.
+FILE: scripts/Start-BL2-Probe.ps1
+  Launches a visible interactive game with BLACKLANDS_MAILBOX set for its process;
+  requires existing BL2 closed. User enables main probe and loads a test character.
+FILE: scripts/Open-Plutonium.ps1
+  Opens the launcher for user-controlled account/LAN setup.
+FILE: scripts/Monitor-Bridge.ps1
+  Runs the existing file monitor with the correct raw/scriptdata mailbox.
+FILE: scripts/Start-RuntimeBridge.ps1
+  Builds locked Rust dependencies, then runs the finite sidecar. Defaults 180s.
+FILE: scripts/Test-Bridge.ps1
+  Stages authored modules then runs Python unittest discovery with a fake SDK.
+FILE: scripts/Test-RuntimeBridge.ps1
+  Rust fmt/test/clippy/build plus check_runtime.py synthetic real-process test.
+FILE: tests/test_bridge.py
+  Bootstrap, weapon, event attribution and simulated SDK lifecycle tests.
+FILE: tests/test_runtime.py
+  Localhost socket tests: endpoint restrictions, ACK identity, bounds/liveness.
+
+Local-only support data (not source or distribution):
+  work/installations.json: actual game paths (bo2, borderlands2).
+  work/bl2-deployment.json: files[].source/destination/sha256, SDK version,
+    original_executable_sha256. Current total verified: 87 files.
+  work/bo2-deployment.json: deployed GSC path and hash.
+  work/probe-updates/: previous files/manifests and update plans; preserve backups.
+  work/staging/: generated deployment copies; work/runtime-target/: Rust builds.
+  work/references/: inspected SDK stubs, reference mods and tools; not shipped.
+
+==========================================================================
+7. RUNBOOK
+==========================================================================
+
+Run PowerShell commands in the ACTIVE workspace. Known Python: C:\Python314\python.exe.
+Rust cargo/rustc are installed; cargo observed as 1.98.1. Do not assume bare
+"python" resolves correctly. No tests need the old rewrite's Cargo target.
+
+OFFLINE CHECKS:
+  .\scripts\Test-Bridge.ps1 -Python C:\Python314\python.exe
+  .\scripts\Test-RuntimeBridge.ps1 -Python C:\Python314\python.exe
+
+EXISTING LIVE FILE DIAGNOSTICS (when games are running):
+  .\scripts\Monitor-Bridge.ps1 -Python C:\Python314\python.exe -Seconds 5
+  C:\Python314\python.exe bridge/inspect_weapon.py --output work/weapon-current.json
+  C:\Python314\python.exe bridge/inspect_events.py --output work/events-current.json
+
+EXTERNAL GAME WINDOW CAPTURE (leave source restored, not minimized):
+  .\scripts\Setup-RenderProbe.ps1
+  .\scripts\Start-RenderProbe.ps1 -Seconds 30 -Preview
+  .\scripts\Start-RenderProbe.ps1 -Source bo2 -ClientOnly -Seconds 30 -Preview
+Escape/close ends preview. No game input forwarding or BO2 overlay is installed.
+To record intermediate diagnostic frames, add -SaveEverySeconds 2.
+The explicit viewport trial is documented in docs/RENDERING.md; it hides the gun
+as well as the world, so do not present it as the intended weapon-isolation fix.
+Manual restore: py from blacklands_passthrough import render_trial; render_trial.stop()
+
+NATIVE PLAYER/HUD/MENU OBSERVER AND EXTERNAL PRESENTATION:
+  In BL2: pyexec blacklands_passthrough/start_player_probe.py
+  .\scripts\Record-PlayerState.ps1 -Seconds 90
+  .\scripts\Start-PresentationPreview.ps1 -Seconds 90
+Run record/preview independently or in separate terminals. Both game windows must
+be restored for preview. User manually opens/closes native BL2 inventory; preview
+follows, controls stay with games. Observer expires after180s; final live run is
+stopped, as is the preview. Main bootstrap is separate; recheck live availability.
+Manual stop: py from blacklands_passthrough import player_probe; player_probe.stop()
+Read docs/PLAYER_STATE.md. Isolated installation update: Update-BL2-Probe.ps1 -PlayerOnly.
+
+NATIVE INVENTORY CONTROL TRIAL:
+  .\scripts\Start-ControlPanel.ps1 -Seconds 180
+  In BL2: pyexec blacklands_passthrough/start_menu_control.py
+Click Open BL2 inventory in the panel; after native confirmation it attempts BL2
+foreground handoff. Use normal BL2 controls in its actual window. Close inventory
+normally, then click Switch control to BO2. BO2 pause policy is unchanged.
+Manual SDK stop: py from blacklands_passthrough import menu_control; menu_control.stop()
+Player observer is separate. Panel/SDK each finite<=180s; stale files are not live.
+No key forwarding from captured preview. See docs/MENU_CONTROL.md.
+
+BL2 SDK CONSOLE (~ key), only with the main probe enabled:
+  pyexec blacklands_passthrough/diagnose_weapon.py
+  pyexec blacklands_passthrough/refresh_weapon.py
+  pyexec blacklands_passthrough/start_events.py
+Stop capture:
+  py from blacklands_passthrough import events; events.stop()
+
+OPTIONAL RUST LIVE TEST (first native run verified 2026-10-04):
+  .\scripts\Start-RuntimeBridge.ps1 -Seconds 180
+Then, with a BL2 character loaded, in its SDK console:
+  pyexec blacklands_passthrough/start_runtime.py
+Move/look around; firing is unnecessary. Read work/runtime-status.json and the
+mailbox's blacklands_runtime_bl2.json. Require advancing samples/ACKs, matching
+epoch/session and native origin; record errors and rate. Stop early with:
+  py from blacklands_passthrough import runtime; runtime.stop()
+Restarting the Rust host requires restarting this SDK module to read its new
+endpoint. Stale status files after crashes are not proof of liveness.
+
+Do not attempt to bypass login, licensing or anti-cheat. Use Plutonium's explicit
+LAN mode for the planned native integration; ordinary private/solo is not the
+same mode. Do not change public servers. The initial GSC probe is single-player.
+
+==========================================================================
+8. EVIDENCE MAP AND KEY LIMITATIONS
+==========================================================================
+
+All following paths are under work/ and are historical/local, not distributable:
+  validation.json: consolidated test/evidence flags; false flags matter.
+  live-validation.json: two-game bootstrap acknowledgements.
+  bo2-first-live-validation.json: BO2 native probe.
+  weapon-live-validation.json: equipped weapon object.
+  weapon-details-first-live.json: Swift Hail native identity/parts.
+  weapon-switch-validation.json: native weapon switch.
+  weapon-api-live.json: reflected native weapon API.
+  weapon-fire-reload-validation.json + weapon-fire-reload-summary.json: HUD ammo.
+  event-capture-first-live.json + event-capture-final.json: native callbacks/timeout.
+  enemy-hit-live-validation.json: local native damage-display notifications.
+  hit-attribution-native-weapon.json: native DamageCauser attribution.
+  hit-api-first.json + trace-api-live.json + bullet-api-live.json: native metadata.
+  impact-attribution-live.json: 4 firing calls, 3 TakeDamage, 3 damage displays,
+    ZERO impact callbacks, no errors/evictions. shot_id/impact_id unresolved.
+  runtime-ipc-validation.json: 95 synthetic accepted, 3 rejected, real processes.
+  runtime-status.json: latest finite host status; check age/process/advancement.
+  runtime-native-observations.json: timestamped native Rust/SDK/bootstrap statuses.
+  runtime-native-validation.json: native run counts, movement and ACK summary.
+  runtime-native-sdk-log.txt + runtime-native-provenance.json: activation log,
+    original executable check, deployed-file check and participating process IDs.
+  runtime-background-validation.json: 633 accepted in 14.90s around user-reported
+    BO2 focus; both peers online. Focus not instrumented; no rendering claim.
+  graphics-modules-live.json: BL2 loaded d3d9.dll; Plutonium loaded d3d11.dll/dxgi.dll.
+    Module loading alone does not prove the active device or D3D9Ex/shared textures.
+  render-first/report.json: failed explicit border-toggle attempt; no frames.
+  render-first-retry/: 8s successful native capture, first/last PNGs and report.
+  render-preview-live/: 120s preview, 1,155 submissions, focus/dimension/hash evidence.
+  render-validation.json: earlier capture summary; its pending visual confirmation
+    is superseded by presentation-validation.json and the user's menu-switch test.
+  render-inventory-check/: 3s additional capture; PNG shows GAMEPLAY, not inventory.
+  render-20261004-162828-172b9764/: successful 2s launcher smoke test.
+  render-api-live.json: actual native renderer/HUD/arms/weapon reflection.
+  render-world-trial-state.json: original=false, restored=true, error=null,
+    phase history proves3s delay +12s active presentation flag, then finished.
+  render-world-trial/: interval capture; sample-0016.png HUD-only on black,
+    sample-0020.png restored world/gun. No native alpha preserved by BGR capture.
+  render-world-trial-validation.json: user confirmation + visual/state evidence.
+  interfaces-api-live.json: expanded native renderer/player/HUD API reflection.
+  visibility-capabilities-live.json: three candidate visibility arrays unavailable.
+  render-client-bl2/, render-client-bo2-retry/: measured clean game client captures.
+  render-inventory-batch/sample-0019.png: actual native Inventory; sample-0015.png:
+    Badass Rank. Local source-game content, not distributable assets.
+  player-state-live.json: initial capture with real WinError5 failure, preserved.
+  player-state-fixed-live.json: 472 recorded observations after producer fix.
+    This running recorder used an earlier reader implementation; final short-read
+    implementation has separate offline file-handle-release regression coverage.
+  player-state-fixed-final.json: seq711, inactive duration_complete, errors0,
+    write_skips2; final publication and hook deadline stop verified.
+  presentation-live/: 120s receiver, 1,161 samples, five view entries; user confirmed.
+  presentation-validation.json: batch summary and current deployment verification.
+  control-startup-smoke/:2s real panel startup/deadline with no commands submitted.
+  presentation-recovery-smoke/:3s native dual capture after recovery changes;
+    no error or crop mismatch. Actual BL2 capture failure was not induced.
+  control-native-first/: first activation failed, but same panel later handled
+    corrected open and already_open requests plus successful BL2/BO2 foreground
+    handoff; panel ended at its180s deadline. Read events, not the folder name alone.
+  control-native-retry/: independent activation/open confirmation and verified
+    BL2 and BO2 focus; user confirmed Inventory opened and received control.
+  menu-native-confirmed.json + player-menu-confirmed.json: native status with
+    current Inventory screen3, opened result, zero menu errors at sampling time.
+  menu-native-capture/last.png: actual Inventory visually inspected after request.
+  menu-native-sdk-log.txt: initial failure and corrected explicit activations.
+  menu-control-validation.json: consolidated offline/native/user/deployment results.
+  menu-native-final.json + player-menu-final.json: normal finite SDK shutdown,
+    zero errors; original native menu left under the player's control.
+
+DO NOT REPEAT THESE FAILED ASSUMPTIONS:
+- Damage display ordering does not identify the originating shot.
+- Pistol hits can arrive after firing returns, with multiple rounds in flight.
+  Assigning the most recent firing ID would fabricate causality.
+- ProcessInstantHitBullet exists in reflection, but our hook recorded no calls
+  during actual hits. Existence/registration alone is not execution proof.
+- ProjectileDefinitionFire/ExecuteProjectileFiredConstructEvent association has
+  synthetic coverage only. No native spawned-projectile link was seen in this test.
+- A native weapon path identifies a local object, not a cross-session item ID.
+- A callback's damage argument is not proof of target health loss or a universal
+  damage formula. BL2 test-enemy damage cannot be blindly reused for BO2 zombies.
+- UDP ACKs confirm accepted telemetry, not execution of game actions.
+- bDisableWorldRendering keeps the native HUD but removes first-person guns too.
+  Arms DepthPriorityGroup=1 alone does not exempt them from this viewport switch.
+  An opaque black background is not alpha; black-keying would damage HUD artwork.
+- Controller visibility arrays were not exposed by this SDK/build; property names
+  from another UE3 build are not usable native offsets or proof of a working API.
+- Native XP pool max100,000,000 was not next-level threshold899,363 at level30.
+  Menus/HUD currently show the normal donor character, not a new Zombies build.
+- External inventory viewing is verified. Native inventory request and foreground
+  handoff now have a separate finite control trial; do not equate that with input
+  forwarding, a single playable window, host pause or an inventory embedded in BO2.
+- SDK revision b1852aa4 add_hook can insert a second callback and return false.
+  Player/menu modules now verify has_hook after owned cleanup/add; stop recovers
+  identifiers even with lost Python state. Other optional adapters still use the
+  older return-value check: revisit before simultaneous activation, not blind retry.
+- The old Rust prototype contains authored approximation mechanics; those are
+  not proof or implementation of this passthrough project's native systems.
+
+==========================================================================
+9. NEXT WORK - BOUNDED PROOFS BEFORE LARGE INTEGRATION
+==========================================================================
+
+A. Native BL2 pose -> Rust and background ticking now have first live evidence.
+   Preserve this regression baseline. Future transport changes need new live
+   validation; do not infer combat reliability or end-to-end latency from ACKs.
+
+B0. Gun/world separation is proven via SDPG_Foreground (foreground_trial). Next:
+   get a FULL world mask while gun/arms stay in Foreground. Candidates, in order:
+   (1) DONE, negative: bDisableWorldRendering hides the foreground group too.
+   (2) DONE, negative: stronger AO/refresh stays at ~0.3% world coverage;
+   (2b) DONE, SUCCESS: Foreground gun + dense key height fog (fog_trial).
+   DONE: isolation_mode + composite_preview give the first combined picture.
+   NEXT: hide BO2's own viewmodel/crosshair under the overlay (GSC-side, BO2 owns
+   rendering there); decide HUD layout/aspect mapping instead of stretching;
+   measure fog-reassert cost; handle BL2 maps without a height fog (pick a fixed
+   donor map with fog, or a SkyCraft-style empty spot, needs user decision);
+   then move from an external preview toward in-BO2 compositing and input.
+   (3) a world-group MaterialEffect with a constant-colour material;
+   (4) temporarily hiding world actors; (5) native D3D9-level foreground capture
+   (outside current SDK-only scope; needs a user decision).
+   Also check muzzle flash/particles and scopes, which may stay in the World
+   group, and whether the native HUD stays unaffected. Do NOT rerun
+   postprocess_trial (extra chains are not merged). Results are a chroma key or
+   black background, not true alpha, until proven otherwise.
+
+B. Next presentation investigation: identify actual BL2/BO2 graphics devices,
+   profile GPU capture/receiver and isolate first-person + native HUD/inventory
+   layers from the donor world. Keep the user-selected native BL2 HUD.
+   Inspect per-view visibility or a dedicated foreground pass/target for weapons;
+   the tested world-disable flag is only a HUD candidate. Preserve proper alpha
+   or a coverage mask, not a fixed crop or black-pixel key presented as fidelity.
+   Whole-window CPU capture and continued rendering while unfocused are now
+   observed. Clean two-game capture, native inventory visibility and automatic
+   external menu display are also verified; preserve these regression baselines.
+   A bounded native Inventory opener and explicit foreground handoff now exist;
+   preserve its activation/session/expiry/confirmation rules. Next unified-input
+   work still needs close/focus-loss/held-key/stale-donor and host pause semantics.
+   No further manual inventory-observation test is needed for the viewing gate.
+   GPU sharing across DX9Ex/DX11 is a documented
+   possibility, not a verified property of these running games. Gun transparency,
+   muzzle effects, scopes and inventory input follow that proof.
+
+C. Combat: investigate native delayed-bullet processing or a bounded SDK call
+   trace. Current weapon attribution is useful, but repeating the same pistol
+   test with the same hook does not resolve its missing shot identity. Establish
+   reliable target/event identity and collision semantics before BO2 damage.
+
+D. Lobby selector: online evidence supports a BO2 LUI route. First prove one
+   Character button with mouse/controller focus, selected class ID persistence
+   through map load and a readable bridge handoff. Do not claim that menu success
+   also initializes a native BL2 character. No UI mod has been deployed yet.
+
+E. After these gates: one pistol combat loop; then pellets/elements/rockets and
+   grenades; native loot pickup/equip; shields/classes; native inventory overlay;
+   proposed per-match skills; all-map validation; later co-op.
+
+Each major step should end with evidence, accurate limitations and this handoff
+updated. Gameplay features require new explicit contracts; they cannot be added
+as arbitrary executable commands to the diagnostic channels.
+
+==========================================================================
+10. REFERENCES / RESEARCH THAT A NEW MODEL SHOULD NOT LOSE
+==========================================================================
+
+- Original user guide: https://github.com/trevaintdead/ai-game-modding-guides
+- MC's supplied "The Passthrough / Interface Method": reviewed; useful architecture
+  incorporated in docs/DESIGN.md. Claims of universal merging/optimization and
+  guaranteed crash avoidance are not adopted as facts.
+- SDK reference: https://github.com/bl-sdk/willow2-mod-manager
+  Inspected reference revision: beaab44e6509ebc91565ca6ccb6c846aabc0982d.
+  Official installed SDK release v3.8; local stubs are under work/references.
+- Native callback/weapon references: Apple's bl-sdk-mods, inspected revision
+  351af68f6d9ffc28d4fc484ac9b9b3256ef187cf. No gameplay cheat mods installed.
+- Architecture reference: https://github.com/chasmlol/SkyCraft/blob/main/docs/DESIGN.md
+  Inspected bfcaf178524b92c2cdeb88e4ce0f13ef9ded6f32. BO2 remains movement authority
+  here; SkyCraft's physics ownership was not copied.
+- Lobby UI research (2026-10-04; online evidence, NOT in-game verification):
+  https://plutonium.pw/docs/changelog/#r5304
+    T6 raw LUI is restricted to active fs_game mods; private/LAN menu options
+    were added. Old "just edit raw/ui" instructions may not apply now.
+  https://github.com/DavidHiFi/T6-QoL/blob/main/README.md
+    Author documents pre-match starting-pistol and perk-limit settings.
+  https://github.com/DoktorSAS/PlutoniumT6Mapvote
+    Published custom LUI mod-loading example, not our character selector.
+- https://plutonium.pw/en/docs/anticheat/
+  Use official LAN mode where required; do not infer private match disables it.
+- https://learn.microsoft.com/en-us/windows/win32/direct3darticles/surface-sharing-between-windows-graphics-apis
+  Rendering interoperability reference, not current project capability.
+
+==========================================================================
+11. MAINTENANCE CONTRACT / RECENT CHANGE LOG
+==========================================================================
+
+Update this file after every major code, design, deployment or live-test change,
+and before handing off a major step to the user or another model. This is an
+ongoing project instruction in AGENTS.md, not a scheduled background automation.
+
+When updating:
+1. Change the date/latest-change line and reconcile current scope/decisions.
+2. Add or revise affected files, key functions/variables, protocols and run steps.
+3. Label results LIVE, SYNTHETIC, RESEARCH ONLY, UNTESTED or PROPOSED accurately.
+4. Record actual check results and local evidence paths; do not infer success.
+5. Update unresolved issues and concrete next steps; remove superseded blockers.
+6. Keep docs/STATUS.md, DESIGN.md and RUNTIME.md consistent where affected.
+7. Never copy credentials, live tokens, game assets/saves or actual installation
+   paths here. Refer to ignored configuration/manifests instead.
+
+2026-10-03: Switched from standalone Rust rewrite to separate passthrough project.
+2026-10-04: Verified bootstrap, weapon identity/switching, ammo/reload and native
+            damage cause. Exact shot attribution remains unresolved.
+2026-10-04: Added/deployed finite Rust pose IPC; offline checks passed, live deferred.
+2026-10-04: Scope expanded to all maps, characters, shields, grenades and class
+            upgrades; fast skill progression proposed; per-new-match reset confirmed.
+2026-10-04: Researched pre-match LUI feasibility; supported by sources, not tested.
+2026-10-04: Created PROGRESS.txt, linked it from project entry points and required
+            updates after major changes. Documentation-only step; no game launch.
+2026-10-04: Resumed live testing; native pose/weapon observations and matching ACKs
+            verified. Background ticking continued while user reported BO2 focus.
+            Graphics DLL inventory collected; device/sharing/rendering unverified.
+2026-10-04: Added external whole-window WGC capture and finite CPU preview. Native
+            world/gun/HUD captured; changing frames continued with BO2 foreground.
+            Python compilation, PowerShell syntax and launcher live smoke passed.
+            Preview/inventory user confirmation pending; GPU sharing unimplemented.
+2026-10-04: User explicitly chose to keep BL2 HUD for shield/grenade status and
+            XP/level-up feedback. Updated rendering/ownership plan to preserve it.
+            Actual health/equipment/XP synchronization remains unimplemented.
+2026-10-04: Added read-only renderer inspector and explicit reversible viewport
+            test. Native HUD survived world disable, gun did not. Automatic
+            restoration verified visually and by flag readback; user confirmed.
+            41 Python tests passed; 81 deployed hashes/executable matched.
+            No persistent presentation setting or game save was changed.
+2026-10-04: Added clean BL2/BO2 client capture, native player/HUD/menu observer,
+            and menu-driven external dual-game receiver. User confirmed native
+            inventory switching. Fixed Windows snapshot conflicts: native run
+            completed711 samples with zero errors/two skipped writes. 60 Python
+            tests passed, PowerShell syntax passed,84 deployment hashes/executable
+            matched. Added reusable launchers and docs/PLAYER_STATE.md. Gun alpha,
+            input routing and actual cross-game gameplay remain unimplemented.
+2026-10-04: Added explicit native Inventory command channel, finite desktop control
+            panel and user-initiated BL2/BO2 focus handoff. Native open/already-open
+            and foreground checks succeeded; user confirmed. Fixed SDK b1852aa4
+            false-return insertion handling and orphaned-owned-hook cleanup in
+            player/menu modules. Added capture fallback, malformed-menu validation,
+            startup reports and bounded crop-failure handling.85 Python tests,
+            Python compilation, PowerShell syntax and87 installed hashes passed.
+            No synthetic input forwarding, host pause or embedded BO2 UI added.
+2026-10-04: Added read-only post-process inspector and explicit reversible world-key
+            trial (owned chain, SDPG_World uber effect) for gun+HUD isolation.
+            94 Python tests passed; RenderOnly update deployed with backup.
+            Live: inserted chain ignored (renamed clone, DPG reset), cleaned up.
+            AO retune works only with AO enabled and tinted the gun too: arms/gun
+            are in SDPG_World (1), correcting earlier notes. foreground_trial moved
+            them to SDPG_Foreground: world tinted, gun clean, user confirmed, full
+            restore. 107 Python tests passed. Full world mask not yet achieved.
+2026-10-04: blackout_trial: Foreground gun + world-disable flag gives HUD only;
+            the flag skips the foreground group too. Restored cleanly. 111 tests.
+2026-10-04: coverage_trial: stronger AO + chain refresh did not widen coverage
+            (~0.3%). AO route exhausted for a full mask. 114 tests.
+2026-10-04: diagnose_fog + fog_trial: Foreground gun + dense magenta height fog
+            keyed ~99.7% of the world while gun and HUD stayed clean; user
+            confirmed; full restore. Fog must be reasserted every frame. 119 tests.
+2026-10-04: isolation_mode + composite_preview: first live combined picture, BL2
+            native gun+HUD keyed over BO2 Zombies; weapon switch followed; user
+            confirmed; restored. 128 tests (+6 numpy tests in render venv).
